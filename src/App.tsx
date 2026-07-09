@@ -48,6 +48,13 @@ function App() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsDeviceName, setSettingsDeviceName] = useState("");
+  const [settingsDownloadDir, setSettingsDownloadDir] = useState("");
+  const [settingsPort, setSettingsPort] = useState(50050);
+  const [settingsBindIp, setSettingsBindIp] = useState("0.0.0.0");
+  const [availableInterfaces, setAvailableInterfaces] = useState<Array<{ name: string; ip: string }>>([]);
+
   // Initialize and load state
   useEffect(() => {
     // 1. Get Local IP
@@ -195,6 +202,48 @@ function App() {
     }, 4000);
   };
 
+  const openSettings = () => {
+    invoke<any>("get_settings")
+      .then((settings) => {
+        setSettingsDeviceName(settings.device_name);
+        setSettingsDownloadDir(settings.download_dir);
+        setSettingsPort(settings.port);
+        setSettingsBindIp(settings.bind_ip);
+        setIsSettingsOpen(true);
+      })
+      .catch((err) => console.error("Failed to load settings:", err));
+
+    invoke<Array<{ name: string; ip: string }>>("get_network_interfaces")
+      .then(setAvailableInterfaces)
+      .catch((err) => console.error("Failed to load interfaces:", err));
+  };
+
+  const saveSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    const settings = {
+      device_name: settingsDeviceName,
+      download_dir: settingsDownloadDir,
+      port: settingsPort,
+      bind_ip: settingsBindIp,
+    };
+
+    invoke("update_settings", { settings })
+      .then(() => {
+        setDeviceName(settingsDeviceName);
+        setIsSettingsOpen(false);
+        showNotification("Settings saved successfully!");
+        
+        // Refresh local IP in case bind IP was updated
+        invoke<string>("get_local_ip")
+          .then(setLocalIp)
+          .catch((err) => console.error("Failed to get local IP:", err));
+      })
+      .catch((err) => {
+        setErrorMsg(`Failed to save settings: ${err}`);
+        setTimeout(() => setErrorMsg(null), 4000);
+      });
+  };
+
   const addDevice = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputName || !inputIp) return;
@@ -313,6 +362,16 @@ function App() {
             <span className="w-2 h-2 rounded-full bg-cyan-400" />
             <span>Local IP: <strong className="text-gray-200">{localIp}</strong></span>
           </div>
+          <button 
+            onClick={openSettings} 
+            className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 text-gray-400 hover:text-white transition-all cursor-pointer"
+            title="Settings"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -626,6 +685,97 @@ function App() {
         </section>
 
       </main>
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 animate-fadeIn">
+          <form onSubmit={saveSettings} className="glass-panel w-[480px] p-8 rounded-2xl border border-white/10 flex flex-col gap-5">
+            <h2 className="text-xl font-bold text-gray-200 flex items-center gap-2 border-b border-white/5 pb-4 mb-2">
+              <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Settings
+            </h2>
+
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Device Nickname</label>
+              <input
+                type="text"
+                required
+                value={settingsDeviceName}
+                onChange={(e) => setSettingsDeviceName(e.target.value)}
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Save Directory</label>
+              <input
+                type="text"
+                required
+                value={settingsDownloadDir}
+                onChange={(e) => setSettingsDownloadDir(e.target.value)}
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-2">
+                <label className="text-xs text-gray-400 block mb-1">Network Interface</label>
+                <select
+                  value={settingsBindIp}
+                  onChange={(e) => setSettingsBindIp(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition cursor-pointer appearance-none"
+                  style={{ backgroundImage: 'url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3E%3Cpath stroke=\'%23a1a1aa\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3E%3C/svg%3E")', backgroundPosition: 'right 0.5rem center', backgroundSize: '1.25em 1.25em', backgroundRepeat: 'no-repeat' }}
+                >
+                  {availableInterfaces.map((iface) => (
+                    <option key={iface.ip} value={iface.ip} className="bg-[#141029]">
+                      {iface.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Port</label>
+                <input
+                  type="number"
+                  required
+                  min="1024"
+                  max="65535"
+                  value={settingsPort}
+                  onChange={(e) => setSettingsPort(parseInt(e.target.value))}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition"
+                />
+              </div>
+            </div>
+
+            <p className="text-[10px] text-amber-400 leading-normal bg-amber-500/10 border border-amber-500/20 p-3 rounded-lg flex gap-2 items-start mt-2">
+              <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span>Changes to the <strong>Network Interface</strong> or <strong>Port</strong> will take effect after restarting the application.</span>
+            </p>
+
+            <div className="flex gap-3 justify-end mt-4 border-t border-white/5 pt-4">
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(false)}
+                className="px-5 py-2.5 text-sm bg-white/5 border border-white/5 text-gray-300 rounded-xl hover:bg-white/10 transition"
+              >
+                Close
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2.5 text-sm gradient-btn text-white rounded-xl font-bold"
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

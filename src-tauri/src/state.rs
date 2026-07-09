@@ -18,6 +18,7 @@ pub struct AppSettings {
     pub device_name: String,
     pub download_dir: String,
     pub port: u16,
+    pub bind_ip: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,6 +78,7 @@ impl SharedState {
             device_name: default_device_name,
             download_dir: default_download_dir.to_string_lossy().into_owned(),
             port: 50050,
+            bind_ip: "0.0.0.0".to_string(),
         };
 
         let state = Self {

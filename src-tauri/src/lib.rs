@@ -46,7 +46,8 @@ pub fn run() {
             commands::send_file,
             commands::send_clipboard,
             commands::get_local_ip,
-            commands::get_active_transfers
+            commands::get_active_transfers,
+            commands::get_network_interfaces
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

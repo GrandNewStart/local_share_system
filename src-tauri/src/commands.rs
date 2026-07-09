@@ -133,11 +133,47 @@ pub async fn send_clipboard(
     client::send_clipboard_to_peer(peer_ip, peer_port, content, state_inner).await
 }
 
+#[derive(serde::Serialize)]
+pub struct NetworkInterface {
+    pub name: String,
+    pub ip: String,
+}
+
 #[tauri::command]
-pub fn get_local_ip() -> Result<String, String> {
-    local_ip_address::local_ip()
-        .map(|ip| ip.to_string())
-        .map_err(|e| e.to_string())
+pub fn get_network_interfaces() -> Result<Vec<NetworkInterface>, String> {
+    let mut interfaces = Vec::new();
+    interfaces.push(NetworkInterface {
+        name: "All Interfaces (0.0.0.0)".to_string(),
+        ip: "0.0.0.0".to_string(),
+    });
+    
+    if let Ok(ifs) = local_ip_address::list_afinet_netifas() {
+        for (name, ip) in ifs {
+            if ip.is_ipv4() && !ip.is_loopback() {
+                interfaces.push(NetworkInterface {
+                    name: format!("{} ({})", name, ip),
+                    ip: ip.to_string(),
+                });
+            }
+        }
+    }
+    Ok(interfaces)
+}
+
+#[tauri::command]
+pub fn get_local_ip(state: State<'_, Arc<SharedState>>) -> Result<String, String> {
+    let bind_ip = {
+        let settings = state.settings.lock().map_err(|e| e.to_string())?;
+        settings.bind_ip.clone()
+    };
+
+    if bind_ip != "0.0.0.0" {
+        Ok(bind_ip)
+    } else {
+        local_ip_address::local_ip()
+            .map(|ip| ip.to_string())
+            .map_err(|e| e.to_string())
+    }
 }
 
 #[tauri::command]

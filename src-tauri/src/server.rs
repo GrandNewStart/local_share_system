@@ -233,9 +233,9 @@ async fn handle_clipboard_sync(
 }
 
 pub fn start_server(state: Arc<SharedState>) {
-    let port = {
+    let (ip_str, port) = {
         let settings = state.settings.lock().unwrap();
-        settings.port
+        (settings.bind_ip.clone(), settings.port)
     };
 
     tauri::async_runtime::spawn(async move {
@@ -247,7 +247,8 @@ pub fn start_server(state: Arc<SharedState>) {
             .layer(CorsLayer::permissive())
             .with_state(state);
 
-        let addr = SocketAddr::from(([0, 0, 0, 0], port));
+        let ip: std::net::IpAddr = ip_str.parse().unwrap_or_else(|_| std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)));
+        let addr = SocketAddr::new(ip, port);
         let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
         axum::serve(listener, app).await.unwrap();
     });
