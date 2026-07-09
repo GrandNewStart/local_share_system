@@ -37,6 +37,8 @@ pub struct FileRequestPayload {
     pub filename: String,
     pub size_bytes: u64,
     pub peer_name: String,
+    #[serde(default)]
+    pub is_directory: bool,
 }
 
 #[derive(Serialize)]
@@ -115,6 +117,7 @@ async fn handle_file_request(
         progress: 0,
         is_download: true,
         peer_name: payload.peer_name.clone(),
+        is_directory: payload.is_directory,
     };
     
     let mut active = state.active_transfers.lock().unwrap();
@@ -159,9 +162,23 @@ async fn handle_file_upload(
         .unwrap_or_else(|| std::ffi::OsStr::new("uploaded_file"));
     let dest_path = download_dir.join(sanitized_filename);
 
-    let mut file = match File::create(&dest_path).await {
+    let temp_zip_path = std::env::temp_dir().join(format!("incoming_{}.zip", token));
+    let upload_path = if transfer.is_directory {
+        temp_zip_path.clone()
+    } else {
+        dest_path.clone()
+    };
+
+    let mut file = match File::create(&upload_path).await {
         Ok(f) => f,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(_) => {
+            {
+                let mut active = state.active_transfers.lock().unwrap();
+                active.remove(&token);
+            }
+            let _ = state.app_handle.emit("transfer-error", token.clone());
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     };
 
     let mut stream = body.into_data_stream();
@@ -170,10 +187,24 @@ async fn handle_file_upload(
     while let Some(chunk_result) = stream.next().await {
         let chunk = match chunk_result {
             Ok(c) => c,
-            Err(_) => return StatusCode::BAD_REQUEST.into_response(),
+            Err(_) => {
+                {
+                    let mut active = state.active_transfers.lock().unwrap();
+                    active.remove(&token);
+                }
+                let _ = state.app_handle.emit("transfer-error", token.clone());
+                let _ = tokio::fs::remove_file(&upload_path).await;
+                return StatusCode::BAD_REQUEST.into_response();
+            }
         };
 
         if let Err(_) = file.write_all(&chunk).await {
+            {
+                let mut active = state.active_transfers.lock().unwrap();
+                active.remove(&token);
+            }
+            let _ = state.app_handle.emit("transfer-error", token.clone());
+            let _ = tokio::fs::remove_file(&upload_path).await;
             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         }
 
@@ -204,10 +235,22 @@ async fn handle_file_upload(
     // Flush file to disk
     let _ = file.flush().await;
 
-    // Clean up active transfers
+    // Clean up active transfers list
     {
         let mut active = state.active_transfers.lock().unwrap();
         active.remove(&token);
+    }
+
+    // Decompress if directory
+    if transfer.is_directory {
+        let unzip_res = crate::archive::unzip_archive(&temp_zip_path, &download_dir);
+        let _ = tokio::fs::remove_file(&temp_zip_path).await;
+        
+        if let Err(err) = unzip_res {
+            let _ = state.app_handle.emit("transfer-error", token.clone());
+            eprintln!("Unzip failed: {}", err);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     }
 
     // Emit transfer success to React frontend

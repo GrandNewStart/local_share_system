@@ -27,7 +27,7 @@ pub struct ConfigData {
     pub peers: Vec<Peer>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Transfer {
     pub token: String,
     pub filename: String,
@@ -35,6 +35,7 @@ pub struct Transfer {
     pub progress: u64,
     pub is_download: bool,
     pub peer_name: String,
+    pub is_directory: bool,
 }
 
 pub struct SharedState {

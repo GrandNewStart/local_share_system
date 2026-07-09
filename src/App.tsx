@@ -131,6 +131,20 @@ function App() {
       });
     });
 
+    register("transfer-error", (event: { payload: string }) => {
+      const token = event.payload;
+      setActiveTransfers((prev) => {
+        const updated = { ...prev };
+        const failed = updated[token];
+        if (failed) {
+          setErrorMsg(`Transfer of "${failed.filename}" failed`);
+          setTimeout(() => setErrorMsg(null), 5000);
+        }
+        delete updated[token];
+        return updated;
+      });
+    });
+
     register("clipboard-synced", (event: any) => {
       const fromPeer = event.payload;
       showNotification(`Clipboard synced from ${fromPeer}`);
