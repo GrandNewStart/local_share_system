@@ -65,27 +65,29 @@ async fn handle_handshake(
     State(state): State<Arc<SharedState>>,
     Json(payload): Json<HandshakeRequest>,
 ) -> impl IntoResponse {
-    let mut peers = state.peers.lock().unwrap();
-    
-    // Check if peer already exists, or update it
-    let mut found = false;
-    for peer in peers.iter_mut() {
-        if peer.ip == payload.ip_address {
-            peer.name = payload.device_name.clone();
-            peer.status = "Active".to_string();
-            found = true;
-            break;
+    {
+        let mut peers = state.peers.lock().unwrap();
+        
+        // Check if peer already exists, or update it
+        let mut found = false;
+        for peer in peers.iter_mut() {
+            if peer.ip == payload.ip_address {
+                peer.name = payload.device_name.clone();
+                peer.status = "Active".to_string();
+                found = true;
+                break;
+            }
         }
-    }
-    
-    if !found {
-        peers.push(Peer {
-            id: Uuid::new_v4().to_string(),
-            name: payload.device_name.clone(),
-            ip: payload.ip_address.clone(),
-            port: 50050,
-            status: "Active".to_string(),
-        });
+        
+        if !found {
+            peers.push(Peer {
+                id: Uuid::new_v4().to_string(),
+                name: payload.device_name.clone(),
+                ip: payload.ip_address.clone(),
+                port: 50050,
+                status: "Active".to_string(),
+            });
+        }
     }
     
     let _ = state.save_to_disk();
