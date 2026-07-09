@@ -479,11 +479,23 @@ function App() {
               {/* Active Peer Card Info */}
               <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/5">
                 <div>
-                  <h2 className="text-base font-bold text-cyan-400 flex items-center gap-2">
-                    Connected to {selectedPeer.name}
-                    <span className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse inline-block" />
+                  <h2 className={`text-base font-bold flex items-center gap-2 ${
+                    selectedPeer.status === "Active" ? "text-cyan-400" :
+                    selectedPeer.status === "Connecting" ? "text-amber-400" : "text-gray-400"
+                  }`}>
+                    {selectedPeer.status === "Active" ? `Connected to ${selectedPeer.name}` :
+                     selectedPeer.status === "Connecting" ? `Connecting to ${selectedPeer.name}...` :
+                     `Disconnected from ${selectedPeer.name}`}
+                    <span className={`w-2.5 h-2.5 rounded-full inline-block ${
+                      selectedPeer.status === "Active" ? "bg-green-400 animate-pulse" :
+                      selectedPeer.status === "Connecting" ? "bg-amber-400 animate-bounce" : "bg-gray-600"
+                    }`} />
                   </h2>
-                  <p className="text-xs text-gray-400 mt-1">Ready for file drops and clipboard syncs over IP {selectedPeer.ip}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {selectedPeer.status === "Active" ? `Ready for file drops and clipboard syncs over IP ${selectedPeer.ip}` :
+                     selectedPeer.status === "Connecting" ? `Testing connection to IP ${selectedPeer.ip}` :
+                     `Device is offline. Click 'Connect' in the sidebar to establish a connection.`}
+                  </p>
                 </div>
               </div>
 
@@ -491,12 +503,14 @@ function App() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1">
                 
                 {/* FILE TRANSFER PANEL */}
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 relative">
                   <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400">Share File</h3>
                   
                   {/* Drag and Drop Zone */}
                   <div
                     className={`flex-1 min-h-[220px] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center p-8 text-center transition-all ${
+                      selectedPeer.status !== "Active" ? "opacity-30 select-none pointer-events-none" : ""
+                    } ${
                       dragging
                         ? "border-cyan-400 bg-cyan-950/20 scale-[1.02]"
                         : "border-white/10 bg-[#16122F]/40 hover:border-cyan-400/50"
@@ -510,6 +524,16 @@ function App() {
                       Drop any file from your computer directly into this window to transfer it immediately.
                     </p>
                   </div>
+
+                  {selectedPeer.status !== "Active" && (
+                    <div className="absolute inset-0 top-8 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] rounded-2xl p-4 z-20 border border-white/5">
+                      <svg className="w-8 h-8 text-amber-500/80 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span className="text-xs font-bold text-gray-300">Device Not Connected</span>
+                      <span className="text-[10px] text-gray-400 mt-1">Connect in sidebar to enable file drops</span>
+                    </div>
+                  )}
 
                   {/* Active Transfers List */}
                   {Object.keys(activeTransfers).length > 0 && (
@@ -541,10 +565,12 @@ function App() {
                 </div>
 
                 {/* CLIPBOARD PANEL */}
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 relative">
                   <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400">Clipboard Sync</h3>
 
-                  <div className="glass-panel p-6 rounded-2xl border border-white/5 flex-1 flex flex-col justify-between min-h-[220px]">
+                  <div className={`glass-panel p-6 rounded-2xl border border-white/5 flex-1 flex flex-col justify-between min-h-[220px] transition-all ${
+                    selectedPeer.status !== "Active" ? "opacity-30 select-none pointer-events-none" : ""
+                  }`}>
                     <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
                       <svg className="w-12 h-12 text-purple-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
@@ -565,6 +591,16 @@ function App() {
                       Send Local Clipboard
                     </button>
                   </div>
+
+                  {selectedPeer.status !== "Active" && (
+                    <div className="absolute inset-0 top-8 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] rounded-2xl p-4 z-20 border border-white/5">
+                      <svg className="w-8 h-8 text-amber-500/80 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span className="text-xs font-bold text-gray-300">Device Not Connected</span>
+                      <span className="text-[10px] text-gray-400 mt-1">Connect in sidebar to enable clipboard sync</span>
+                    </div>
+                  )}
 
                   {/* Sync logs history */}
                   {clipboardHistory.length > 0 && (
