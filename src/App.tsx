@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
@@ -38,6 +38,11 @@ function App() {
   const [deviceName, setDeviceName] = useState<string>("Local PC");
   const [peers, setPeers] = useState<Peer[]>([]);
   const [selectedPeer, setSelectedPeer] = useState<Peer | null>(null);
+  const selectedPeerRef = useRef<Peer | null>(null);
+
+  useEffect(() => {
+    selectedPeerRef.current = selectedPeer;
+  }, [selectedPeer]);
   const [activeTransfers, setActiveTransfers] = useState<Record<string, Transfer>>({});
   const [clipboardHistory, setClipboardHistory] = useState<Array<{ text: string; time: string; from: string }>>([]);
   const [inputName, setInputName] = useState("");
@@ -70,116 +75,108 @@ function App() {
     // 3. Load Peers list
     loadPeers();
 
-    // 4. Setup Tauri Event Listeners
-    const setupListeners = async () => {
-      // Refresh Peers event
-      const unlistenRefresh = await listen("refresh-peers", () => {
-        loadPeers();
-      });
+    // 4. Setup Tauri Event Listeners (Once on mount)
+    let active = true;
+    const unlisteners: Array<() => void> = [];
 
-      // Transfer Start event
-      const unlistenStart = await listen<Transfer>("transfer-start", (event) => {
-        const transfer = event.payload;
-        setActiveTransfers((prev) => ({
-          ...prev,
-          [transfer.token]: transfer,
-        }));
-      });
-
-      // Transfer Progress event
-      const unlistenProgress = await listen<ProgressPayload>("transfer-progress", (event) => {
-        const payload = event.payload;
-        setActiveTransfers((prev) => {
-          if (!prev[payload.token]) return prev;
-          return {
-            ...prev,
-            [payload.token]: {
-              ...prev[payload.token],
-              progress: payload.progress,
-            },
-          };
-        });
-      });
-
-      // Transfer Complete event
-      const unlistenComplete = await listen<string>("transfer-complete", (event) => {
-        const token = event.payload;
-        setActiveTransfers((prev) => {
-          const updated = { ...prev };
-          const completed = updated[token];
-          if (completed) {
-            showNotification(
-              completed.is_download
-                ? `Successfully received: ${completed.filename}`
-                : `Successfully sent: ${completed.filename}`
-            );
-          }
-          delete updated[token];
-          return updated;
-        });
-      });
-
-      // Clipboard Synced event
-      const unlistenClipboard = await listen<string>("clipboard-synced", (event) => {
-        const fromPeer = event.payload;
-        showNotification(`Clipboard synced from ${fromPeer}`);
-        // Add to history
-        navigator.clipboard.readText().then((text) => {
-          if (text) {
-            setClipboardHistory((prev) => [
-              {
-                text: text.substring(0, 100),
-                time: new Date().toLocaleTimeString(),
-                from: fromPeer,
-              },
-              ...prev.slice(0, 19), // Cap at 20 items
-            ]);
-          }
-        }).catch(() => {});
-      });
-
-      // Drag & Drop Listener
-      const unlistenDragDrop = await listen<DragDropPayload>("tauri://drag-drop", (event) => {
-        setDragging(false);
-        if (!selectedPeer) {
-          setErrorMsg("Please select a device in the sidebar first!");
-          return;
-        }
-        const paths = event.payload.paths;
-        if (paths && paths.length > 0) {
-          // Send each dropped file
-          paths.forEach((path) => {
-            sendPath(path);
-          });
-        }
-      });
-
-      const unlistenDragOver = await listen("tauri://drag-over", () => {
-        setDragging(true);
-      });
-
-      const unlistenDragLeave = await listen("tauri://drag-leave", () => {
-        setDragging(false);
-      });
-
-      return () => {
-        unlistenRefresh();
-        unlistenStart();
-        unlistenProgress();
-        unlistenComplete();
-        unlistenClipboard();
-        unlistenDragDrop();
-        unlistenDragOver();
-        unlistenDragLeave();
-      };
+    const register = async (eventName: string, handler: any) => {
+      const unlisten = await listen(eventName, handler);
+      if (!active) {
+        unlisten();
+      } else {
+        unlisteners.push(unlisten);
+      }
     };
 
-    const cleanupPromise = setupListeners();
+    register("refresh-peers", () => {
+      loadPeers();
+    });
+
+    register("transfer-start", (event: any) => {
+      const transfer = event.payload;
+      setActiveTransfers((prev) => ({
+        ...prev,
+        [transfer.token]: transfer,
+      }));
+    });
+
+    register("transfer-progress", (event: { payload: ProgressPayload }) => {
+      const payload = event.payload;
+      setActiveTransfers((prev) => {
+        if (!prev[payload.token]) return prev;
+        return {
+          ...prev,
+          [payload.token]: {
+            ...prev[payload.token],
+            progress: payload.progress,
+          },
+        };
+      });
+    });
+
+    register("transfer-complete", (event: any) => {
+      const token = event.payload;
+      setActiveTransfers((prev) => {
+        const updated = { ...prev };
+        const completed = updated[token];
+        if (completed) {
+          showNotification(
+            completed.is_download
+              ? `Successfully received: ${completed.filename}`
+              : `Successfully sent: ${completed.filename}`
+          );
+        }
+        delete updated[token];
+        return updated;
+      });
+    });
+
+    register("clipboard-synced", (event: any) => {
+      const fromPeer = event.payload;
+      showNotification(`Clipboard synced from ${fromPeer}`);
+      navigator.clipboard.readText().then((text) => {
+        if (text) {
+          setClipboardHistory((prev) => [
+            {
+              text: text.substring(0, 100),
+              time: new Date().toLocaleTimeString(),
+              from: fromPeer,
+            },
+            ...prev.slice(0, 19),
+          ]);
+        }
+      }).catch(() => {});
+    });
+
+    register("tauri://drag-drop", (event: { payload: DragDropPayload }) => {
+      setDragging(false);
+      const currentPeer = selectedPeerRef.current;
+      if (!currentPeer) {
+        setErrorMsg("Please select a device in the sidebar first!");
+        setTimeout(() => setErrorMsg(null), 4000);
+        return;
+      }
+      const paths = event.payload.paths;
+      if (paths && paths.length > 0) {
+        paths.forEach((path) => {
+          sendPath(path);
+        });
+      }
+    });
+
+    register("tauri://drag-over", () => {
+      setDragging(true);
+    });
+
+    register("tauri://drag-leave", () => {
+      setDragging(false);
+    });
 
     return () => {
-      cleanupPromise.then((cleanup) => cleanup());
+      active = false;
+      unlisteners.forEach((u) => u());
     };
-  }, [selectedPeer]);
+  }, []);
 
   const loadPeers = () => {
     invoke<Peer[]>("get_peers")
@@ -289,11 +286,12 @@ function App() {
   };
 
   const sendPath = (path: string) => {
-    if (!selectedPeer) return;
+    const currentPeer = selectedPeerRef.current;
+    if (!currentPeer) return;
 
     invoke("send_file", {
-      peerIp: selectedPeer.ip,
-      peerPort: selectedPeer.port,
+      peerIp: currentPeer.ip,
+      peerPort: currentPeer.port,
       filePath: path,
     }).catch((err) => {
       setErrorMsg(`Failed to send file: ${err}`);
