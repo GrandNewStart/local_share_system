@@ -69,4 +69,42 @@ The output installer packages will be available in `src-tauri/target/release/bun
 * **Received Files**: By default, incoming files are saved in your system's standard **Downloads** folder (e.g., `~/Downloads` on macOS).
 * **App Configurations**: Device registration, settings, and histories are saved locally in the standard application data folder:
   * **macOS**: `~/Library/Application Support/tauri-app/config.json`
-  * **Windows**: `AppData\Roaming\tauri-app\config.json`
+  * **Windows**: `%APPDATA%\tauri-app\config.json`
+  * **Linux**: `~/.config/tauri-app/config.json`
+
+---
+
+## 🐧 Building for Linux (Ubuntu)
+
+To compile ConnectShare on an Ubuntu or Debian system, follow these steps:
+
+### 1. Install System Toolchain & Library Dependencies
+Tauri requires GTK and WebKit libraries to compile on Linux. Install them using `apt`:
+```bash
+sudo apt update
+sudo apt install -y libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+```
+
+### 2. Install Rust and Node.js
+If they are not already installed on your Ubuntu machine:
+```bash
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+
+# Install Node.js
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+### 3. Build the Executables
+Run the following commands in the project root:
+```bash
+npm install
+npm run tauri build
+```
+
+Tauri will compile and bundle the app into two formats inside `src-tauri/target/release/bundle/`:
+* **`.deb` package** (in `deb/connectshare_*.deb`): Standard Debian/Ubuntu installer. Install it with `sudo dpkg -i <filename>.deb`.
+* **`AppImage`** (in `appimage/connectshare_*.AppImage`): Portable executable. Run `chmod +x <filename>.AppImage` and run it directly on any Linux distribution!
+
