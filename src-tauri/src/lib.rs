@@ -15,10 +15,10 @@ pub fn run() {
             
             // Resolve download folder and config folder
             let app_data_dir = app.path().app_data_dir().unwrap_or_else(|_| {
-                std::env::temp_dir().join("connectshare")
+                std::env::temp_dir().join("portal")
             });
             let download_dir = app.path().download_dir().unwrap_or_else(|_| {
-                std::env::temp_dir().join("connectshare_downloads")
+                std::env::temp_dir().join("portal_downloads")
             });
 
             // Initialize State

@@ -2942,6 +2942,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "portal"
+version = "0.1.0"
+dependencies = [
+ "arboard",
+ "axum",
+ "futures-util",
+ "hostname",
+ "local-ip-address",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-opener",
+ "tokio",
+ "tokio-util",
+ "tower-http 0.5.2",
+ "uuid",
+]
+
+[[package]]
 name = "potential_utf"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3956,27 +3977,6 @@ dependencies = [
  "webview2-com",
  "window-vibrancy",
  "windows",
-]
-
-[[package]]
-name = "tauri-app"
-version = "0.1.0"
-dependencies = [
- "arboard",
- "axum",
- "futures-util",
- "hostname",
- "local-ip-address",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-opener",
- "tokio",
- "tokio-util",
- "tower-http 0.5.2",
- "uuid",
 ]
 
 [[package]]
