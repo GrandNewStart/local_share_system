@@ -59,6 +59,8 @@ function App() {
   const [settingsPort, setSettingsPort] = useState(50050);
   const [settingsBindIp, setSettingsBindIp] = useState("0.0.0.0");
   const [availableInterfaces, setAvailableInterfaces] = useState<Array<{ name: string; ip: string }>>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState("");
 
   // Initialize and load state
   useEffect(() => {
@@ -93,6 +95,7 @@ function App() {
     });
 
     register("transfer-start", (event: any) => {
+      setIsProcessing(false);
       const transfer = event.payload;
       setActiveTransfers((prev) => ({
         ...prev,
@@ -132,6 +135,7 @@ function App() {
     });
 
     register("transfer-error", (event: { payload: string }) => {
+      setIsProcessing(false);
       const token = event.payload;
       setActiveTransfers((prev) => {
         const updated = { ...prev };
@@ -303,14 +307,24 @@ function App() {
     const currentPeer = selectedPeerRef.current;
     if (!currentPeer) return;
 
+    setIsProcessing(true);
+    const parts = path.split(/[/\\]/);
+    const itemName = parts[parts.length - 1] || path;
+    setProcessingMessage(`Preparing and compressing "${itemName}"...`);
+
     invoke("send_file", {
       peerIp: currentPeer.ip,
       peerPort: currentPeer.port,
       filePath: path,
-    }).catch((err) => {
-      setErrorMsg(`Failed to send file: ${err}`);
-      setTimeout(() => setErrorMsg(null), 5000);
-    });
+    })
+      .then(() => {
+        setIsProcessing(false);
+      })
+      .catch((err) => {
+        setIsProcessing(false);
+        setErrorMsg(`Failed to send file: ${err}`);
+        setTimeout(() => setErrorMsg(null), 5000);
+      });
   };
 
   const sendClipboardData = () => {
@@ -786,6 +800,19 @@ function App() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Processing Loader Overlay */}
+      {isProcessing && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 animate-fadeIn">
+          <div className="glass-panel p-8 rounded-2xl border border-white/10 flex flex-col items-center gap-4 max-w-sm text-center">
+            <div className="w-12 h-12 rounded-full border-4 border-cyan-500/20 border-t-cyan-400 animate-spin" />
+            <h3 className="text-lg font-bold text-gray-200 mt-2">Preparing Transfer</h3>
+            <p className="text-sm text-gray-400 leading-relaxed">
+              {processingMessage || "Compressing folders and preparing files. Please wait..."}
+            </p>
+          </div>
         </div>
       )}
     </div>
