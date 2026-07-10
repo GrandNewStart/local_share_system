@@ -61,6 +61,7 @@ function App() {
   const [availableInterfaces, setAvailableInterfaces] = useState<Array<{ name: string; ip: string }>>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState("");
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   // Initialize and load state
   useEffect(() => {
@@ -190,9 +191,39 @@ function App() {
       setDragging(false);
     });
 
+    register("local-ip-changed", (event: { payload: string }) => {
+      setLocalIp(event.payload);
+      showNotification("Local network IP updated!");
+    });
+
+    register("interfaces-changed", () => {
+      invoke<Array<{ name: string; ip: string }>>("get_network_interfaces")
+        .then(setAvailableInterfaces)
+        .catch((err) => console.error("Failed to load interfaces:", err));
+    });
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      showNotification("Connected to local network.");
+      invoke<string>("get_local_ip")
+        .then(setLocalIp)
+        .catch((err) => console.error("Failed to get local IP:", err));
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      setErrorMsg("No network connection. Please check your Wi-Fi or Ethernet.");
+      setTimeout(() => setErrorMsg(null), 5000);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
     return () => {
       active = false;
       unlisteners.forEach((u) => u());
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
@@ -400,6 +431,16 @@ function App() {
           </button>
         </div>
       </header>
+
+      {/* Offline Network Warning Banner */}
+      {!isOnline && (
+        <div className="w-full bg-red-950/80 border-b border-red-500/30 text-red-200 text-xs py-2.5 px-8 flex items-center gap-2 backdrop-blur-md animate-pulse z-20">
+          <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span><strong>Offline</strong>: No active local network connection. Connect to a router or Wi-Fi to scan interfaces and transfer files.</span>
+        </div>
+      )}
 
       {/* Dynamic Alerts */}
       {errorMsg && (
