@@ -126,9 +126,18 @@ pub async fn send_file(
 pub async fn send_clipboard(
     peer_ip: String,
     peer_port: u16,
-    content: String,
     state: State<'_, Arc<SharedState>>,
 ) -> Result<(), String> {
+    let content = tokio::task::spawn_blocking(|| {
+        arboard::Clipboard::new()
+            .and_then(|mut ctx| ctx.get_text())
+            .map_err(|e| e.to_string())
+    }).await.map_err(|e| e.to_string())??;
+
+    if content.trim().is_empty() {
+        return Err("Local clipboard is empty or does not contain text".to_string());
+    }
+
     let state_inner = state.inner().clone();
     client::send_clipboard_to_peer(peer_ip, peer_port, content, state_inner).await
 }

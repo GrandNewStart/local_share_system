@@ -47,10 +47,15 @@ pub struct FileRequestResponse {
     pub transfer_token: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct ClipboardPayload {
     pub content: String,
     pub peer_name: String,
+}
+#[derive(Clone, Serialize)]
+struct ClipboardSyncedPayload {
+    peer_name: String,
+    content: String,
 }
 
 #[derive(Clone, Serialize)]
@@ -263,14 +268,17 @@ async fn handle_clipboard_sync(
     State(state): State<Arc<SharedState>>,
     Json(payload): Json<ClipboardPayload>,
 ) -> impl IntoResponse {
-    // Set clipboard text
+    let payload_clone = payload.clone();
     let set_result = tokio::task::spawn_blocking(move || {
-        arboard::Clipboard::new().and_then(|mut ctx| ctx.set_text(payload.content))
+        arboard::Clipboard::new().and_then(|mut ctx| ctx.set_text(payload_clone.content))
     }).await;
 
     match set_result {
         Ok(Ok(_)) => {
-            let _ = state.app_handle.emit("clipboard-synced", payload.peer_name);
+            let _ = state.app_handle.emit("clipboard-synced", ClipboardSyncedPayload {
+                peer_name: payload.peer_name.clone(),
+                content: payload.content.clone(),
+            });
             StatusCode::OK.into_response()
         }
         _ => StatusCode::INTERNAL_SERVER_ERROR.into_response(),

@@ -151,22 +151,18 @@ function App() {
       });
     });
 
-    register("clipboard-synced", (event: any) => {
-      const fromPeer = event.payload;
-      showNotification(`Clipboard synced from ${fromPeer}`);
-      navigator.clipboard.readText().then((text) => {
-        if (text) {
-          setClipboardHistory((prev) => [
-            {
-              text: text.substring(0, 100),
-              time: new Date().toLocaleTimeString(),
-              from: fromPeer,
-            },
-            ...prev.slice(0, 19),
-          ]);
-          setLatestClipboardAlert({ text, from: fromPeer });
-        }
-      }).catch(() => {});
+    register("clipboard-synced", (event: { payload: { peer_name: string; content: string } }) => {
+      const { peer_name, content } = event.payload;
+      showNotification(`Clipboard synced from ${peer_name}`);
+      setClipboardHistory((prev) => [
+        {
+          text: content.substring(0, 100),
+          time: new Date().toLocaleTimeString(),
+          from: peer_name,
+        },
+        ...prev.slice(0, 19),
+      ]);
+      setLatestClipboardAlert({ text: content, from: peer_name });
     });
 
     register("tauri://drag-drop", (event: { payload: DragDropPayload }) => {
@@ -363,29 +359,17 @@ function App() {
   const sendClipboardData = () => {
     if (!selectedPeer) return;
 
-    navigator.clipboard.readText().then((text) => {
-      if (!text) {
-        setErrorMsg("Clipboard is empty or contains non-text data.");
-        setTimeout(() => setErrorMsg(null), 3000);
-        return;
-      }
-
-      invoke("send_clipboard", {
-        peerIp: selectedPeer.ip,
-        peerPort: selectedPeer.port,
-        content: text,
+    invoke("send_clipboard", {
+      peerIp: selectedPeer.ip,
+      peerPort: selectedPeer.port,
+    })
+      .then(() => {
+        showNotification("Clipboard content sent successfully!");
       })
-        .then(() => {
-          showNotification("Clipboard content sent successfully!");
-        })
-        .catch((err) => {
-          setErrorMsg(`Failed to sync clipboard: ${err}`);
-          setTimeout(() => setErrorMsg(null), 4000);
-        });
-    }).catch(() => {
-      setErrorMsg("Failed to read system clipboard.");
-      setTimeout(() => setErrorMsg(null), 3000);
-    });
+      .catch((err) => {
+        setErrorMsg(`Failed to sync clipboard: ${err}`);
+        setTimeout(() => setErrorMsg(null), 4000);
+      });
   };
 
   // Helper formatting utilities
