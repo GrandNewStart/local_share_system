@@ -382,7 +382,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen relative flex flex-col font-sans select-none text-gray-100 overflow-hidden bg-[#0F0C20]">
+    <div className="h-screen relative flex flex-col font-sans select-none text-gray-100 overflow-hidden bg-[#0F0C20]">
       {/* Background ambient glow shapes */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full glow-purple-blur z-0" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full glow-cyan-blur z-0" />
@@ -430,7 +430,7 @@ function App() {
 
       {/* Dynamic Alerts */}
       {errorMsg && (
-        <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-50 bg-red-950/80 border border-red-500/50 text-red-200 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 backdrop-blur-md animate-bounce">
+        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 bg-red-950/80 border border-red-500/50 text-red-200 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 backdrop-blur-md animate-bounce">
           <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
@@ -439,7 +439,7 @@ function App() {
       )}
 
       {successMsg && (
-        <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-50 bg-cyan-950/80 border border-cyan-500/50 text-cyan-200 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 backdrop-blur-md transition-all duration-300">
+        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 bg-cyan-950/80 border border-cyan-500/50 text-cyan-200 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 backdrop-blur-md transition-all duration-300">
           <svg className="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
