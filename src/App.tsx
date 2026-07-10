@@ -719,7 +719,9 @@ function App() {
                             Received Clipboard from {latestClipboardAlert.from}
                           </div>
                           <p className="bg-black/30 border border-white/5 p-2.5 rounded-lg break-all max-h-[120px] overflow-y-auto font-mono text-gray-300 leading-relaxed selection:bg-purple-500/30">
-                            {latestClipboardAlert.text}
+                            {latestClipboardAlert.text.length > 400 
+                              ? latestClipboardAlert.text.substring(0, 400) + "..." 
+                              : latestClipboardAlert.text}
                           </p>
                         </div>
                       </div>
