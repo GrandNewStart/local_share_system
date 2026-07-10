@@ -62,6 +62,7 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState("");
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [latestClipboardAlert, setLatestClipboardAlert] = useState<{ text: string; from: string } | null>(null);
 
   // Initialize and load state
   useEffect(() => {
@@ -163,6 +164,7 @@ function App() {
             },
             ...prev.slice(0, 19),
           ]);
+          setLatestClipboardAlert({ text, from: fromPeer });
         }
       }).catch(() => {});
     });
@@ -697,15 +699,41 @@ function App() {
                   <div className={`glass-panel p-6 rounded-2xl border border-white/5 flex-1 flex flex-col justify-between min-h-[220px] transition-all ${
                     selectedPeer.status !== "Active" ? "opacity-30 select-none pointer-events-none" : ""
                   }`}>
-                    <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
-                      <svg className="w-12 h-12 text-purple-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                      </svg>
-                      <h4 className="font-bold text-gray-200 text-sm mb-1">Clipboard Sharing</h4>
-                      <p className="text-xs text-gray-400 max-w-xs mb-6">
-                        Copy anything to your system clipboard (text, URL, etc.), then click the button below to paste it directly onto the target device.
-                      </p>
-                    </div>
+                    {latestClipboardAlert ? (
+                      <div className="flex-1 flex flex-col justify-center mb-4">
+                        <div className="bg-purple-950/40 border border-purple-500/30 rounded-xl p-4 text-xs text-gray-200 flex flex-col gap-2.5 relative animate-fadeIn">
+                          <button
+                            type="button"
+                            onClick={() => setLatestClipboardAlert(null)}
+                            className="absolute top-3 right-3 text-gray-400 hover:text-white transition cursor-pointer"
+                            title="Dismiss"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                          <div className="flex items-center gap-1.5 font-bold text-purple-400 uppercase tracking-wider text-[10px]">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2" />
+                            </svg>
+                            Received Clipboard from {latestClipboardAlert.from}
+                          </div>
+                          <p className="bg-black/30 border border-white/5 p-2.5 rounded-lg break-all max-h-[120px] overflow-y-auto font-mono text-gray-300 leading-relaxed selection:bg-purple-500/30">
+                            {latestClipboardAlert.text}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                        <svg className="w-12 h-12 text-purple-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                        <h4 className="font-bold text-gray-200 text-sm mb-1">Clipboard Sharing</h4>
+                        <p className="text-xs text-gray-400 max-w-xs mb-6">
+                          Copy anything to your system clipboard (text, URL, etc.), then click the button below to paste it directly onto the target device.
+                        </p>
+                      </div>
+                    )}
 
                     <button
                       onClick={sendClipboardData}
