@@ -38,8 +38,24 @@ pub fn run() {
 
             // 1. Network configuration background polling loop
             let app_handle_network = app.handle().clone();
+            let state_network = Arc::clone(&state);
             tauri::async_runtime::spawn(async move {
-                let mut last_ip = local_ip_address::local_ip().map(|ip| ip.to_string()).ok();
+                let get_current_ip = |state_net: &Arc<state::SharedState>| -> Option<String> {
+                    let bind_ip = {
+                        if let Ok(lock) = state_net.settings.lock() {
+                            lock.bind_ip.clone()
+                        } else {
+                            "0.0.0.0".to_string()
+                        }
+                    };
+                    if bind_ip != "0.0.0.0" {
+                        Some(bind_ip)
+                    } else {
+                        local_ip_address::local_ip().map(|ip| ip.to_string()).ok()
+                    }
+                };
+
+                let mut last_ip = get_current_ip(&state_network);
                 let mut last_ifs = local_ip_address::list_afinet_netifas().ok();
 
                 loop {
@@ -53,7 +69,7 @@ pub fn run() {
 
                         if changed {
                             last_ifs = Some(current_ifs);
-                            let new_ip = local_ip_address::local_ip().map(|ip| ip.to_string()).ok();
+                            let new_ip = get_current_ip(&state_network);
                             if new_ip != last_ip {
                                 last_ip = new_ip.clone();
                                 let _ = app_handle_network.emit("local-ip-changed", new_ip);

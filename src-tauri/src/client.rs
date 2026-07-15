@@ -63,9 +63,13 @@ pub async fn perform_handshake(
     // Get current device settings
     let (device_name, local_ip) = {
         let settings = state.settings.lock().unwrap();
-        let ip = local_ip_address::local_ip()
-            .map(|ip| ip.to_string())
-            .unwrap_or_else(|_| "127.0.0.1".to_string());
+        let ip = if settings.bind_ip != "0.0.0.0" {
+            settings.bind_ip.clone()
+        } else {
+            local_ip_address::local_ip()
+                .map(|ip| ip.to_string())
+                .unwrap_or_else(|_| "127.0.0.1".to_string())
+        };
         (settings.device_name.clone(), ip)
     };
 
