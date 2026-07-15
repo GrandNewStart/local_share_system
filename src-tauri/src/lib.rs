@@ -65,8 +65,15 @@ pub fn run() {
             });
 
             // 2. Peer heartbeat background check loop
+            // Requires FAILURE_THRESHOLD consecutive failed connects before a peer is
+            // marked Offline, so a single transient LAN hiccup doesn't flip the status
+            // back and forth. Peers currently "Connecting" (a manual test_connection is
+            // in flight) are left alone so the two writers don't race on the same status.
+            const FAILURE_THRESHOLD: u8 = 3;
             let state_heartbeat = Arc::clone(&state);
             tauri::async_runtime::spawn(async move {
+                let mut consecutive_failures: std::collections::HashMap<String, u8> = std::collections::HashMap::new();
+
                 loop {
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
@@ -77,20 +84,40 @@ pub fn run() {
                         }
                     };
 
+                    // Drop bookkeeping for peers that no longer exist.
+                    let live_ids: std::collections::HashSet<&String> = peers.iter().map(|p| &p.id).collect();
+                    consecutive_failures.retain(|id, _| live_ids.contains(id));
+
                     let mut changed = false;
                     for peer in peers {
+                        if peer.status == "Connecting" {
+                            // A manual test_connection is in progress for this peer; don't race it.
+                            continue;
+                        }
+
                         let addr = format!("{}:{}", peer.ip, peer.port);
                         let is_online = tokio::time::timeout(
-                            std::time::Duration::from_secs(1),
+                            std::time::Duration::from_secs(2),
                             tokio::net::TcpStream::connect(&addr)
                         ).await.is_ok();
 
-                        let new_status = if is_online { "Active" } else { "Offline" };
+                        let new_status = if is_online {
+                            consecutive_failures.remove(&peer.id);
+                            Some("Active")
+                        } else {
+                            let failures = consecutive_failures.entry(peer.id.clone()).or_insert(0);
+                            *failures = failures.saturating_add(1);
+                            if *failures >= FAILURE_THRESHOLD {
+                                Some("Offline")
+                            } else {
+                                None
+                            }
+                        };
 
-                        {
+                        if let Some(new_status) = new_status {
                             if let Ok(mut lock) = state_heartbeat.peers.lock() {
                                 if let Some(p) = lock.iter_mut().find(|x| x.id == peer.id) {
-                                    if p.status != new_status {
+                                    if p.status != "Connecting" && p.status != new_status {
                                         p.status = new_status.to_string();
                                         changed = true;
                                     }

@@ -129,9 +129,10 @@ pub async fn send_clipboard(
     state: State<'_, Arc<SharedState>>,
 ) -> Result<(), String> {
     let content = tokio::task::spawn_blocking(|| {
-        arboard::Clipboard::new()
-            .and_then(|mut ctx| ctx.get_text())
-            .map_err(|e| e.to_string())
+        let mut ctx = arboard::Clipboard::new()
+            .map_err(|e| format!("Could not access system clipboard: {e}"))?;
+        ctx.get_text()
+            .map_err(|_| "Clipboard does not contain text to sync".to_string())
     }).await.map_err(|e| e.to_string())??;
 
     if content.trim().is_empty() {
